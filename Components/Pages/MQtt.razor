@@ -1,0 +1,28 @@
+@page "/MQtt"
+@using SimpleMqtt
+@inject SimpleMqtt.SimpleMqttClient mqttClient
+@attribute [StreamRendering]
+@rendermode InteractiveServer
+
+<PageTitle>RobotBesturing</PageTitle>
+
+
+<button type="button" class="btn btn-dark" @onclick="SendSchoonmaakMessage">SchoonmaakService</button>
+<button type="button" class="btn btn-dark" @onclick="SendForwardMessage">forward</button>
+<button type="button" class="btn btn-danger" @onclick="SendStopMessage">Stop</button>
+
+
+@code {
+    private void SendSchoonmaakMessage()
+    { 
+        mqttClient.PublishMessage("robot/control", "schoonmaak");
+    }
+    private void SendForwardMessage()
+    { 
+        mqttClient.PublishMessage("robot/control", "forward");
+    }
+    private void SendStopMessage()
+    { 
+        mqttClient.PublishMessage("robot/control", "stop");
+    }
+}
