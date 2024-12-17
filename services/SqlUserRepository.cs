@@ -1,7 +1,7 @@
 using Microsoft.Data.SqlClient;
 
-string connectionString = 
-"Server=aei-sql2.avans.nl,1443;Database= DB2233343;UID=ITI2233343;password=S4syB6W2;TrustServerCertificate=True;";
+/* string connectionString = 
+"Server=aei-sql2.avans.nl,1443;Database= DB2233343;UID=ITI2233343;password=S4syB6W2;TrustServerCertificate=True;";*/
 
 public class SqlUserRepostitory : IUserRepository
 {
