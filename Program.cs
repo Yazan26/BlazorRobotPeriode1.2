@@ -2,6 +2,8 @@ using DependencyInjectionExample.Data;
 using WebsiteRobotPeriode1._2.Components;
 using SimpleMqtt;
 using Microsoft.EntityFrameworkCore;
+
+
 var builder = WebApplication.CreateBuilder(args);
 
 
@@ -12,7 +14,8 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
-
+builder.Services.AddScoped<IDatabaseService, DatabaseService>();
+builder.Services.AddScoped<IMqttService, MqttService>();
 var config = builder.Configuration;
 var sqlConnectionString = config.GetConnectionString("DefaultConnection");  
     builder.Services.AddSingleton<IUserRepository, SqlUserRepostitory>(o => new SqlUserRepostitory(sqlConnectionString));
