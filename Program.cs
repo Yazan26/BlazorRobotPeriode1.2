@@ -23,7 +23,7 @@ builder.Services.AddSingleton<WeatherService>();
 builder.Services.AddSingleton<SimpleMqttClient>(provider =>
 {
     var configuration = provider.GetRequiredService<IConfiguration>();
-    var client = SimpleMqttClient.CreateSimpleMqttClientForHiveMQ("2aa2fd");
+    var client = SimpleMqttClient.CreateSimpleMqttClientForHiveMQ("2aa2fd", configuration);
     return client;
 });
 builder.Services.AddHostedService<MqttMessageProcessingService>();
