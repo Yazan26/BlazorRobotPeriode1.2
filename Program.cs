@@ -1,8 +1,7 @@
 using DependencyInjectionExample.Data;
 using WebsiteRobotPeriode1._2.Components;
-using DependencyInjectionExample.Data;
 using SimpleMqtt;
-
+using Microsoft.EntityFrameworkCore;
 var builder = WebApplication.CreateBuilder(args);
 
 
@@ -11,13 +10,17 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
-    var sqlConnectionString = "";  //to do : replace with user secrets
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+var config = builder.Configuration;
+var sqlConnectionString = config.GetConnectionString("DefaultConnection");  
     builder.Services.AddSingleton<IUserRepository, SqlUserRepostitory>(o => new SqlUserRepostitory(sqlConnectionString));
 builder.Services.AddSingleton<WeatherService>();
 builder.Services.AddSingleton<SimpleMqttClient>(provider =>
 {
     var configuration = provider.GetRequiredService<IConfiguration>();
-    var client = SimpleMqttClient.CreateSimpleMqttClientForHiveMQ("2aa2fd8d", configuration);
+    var client = SimpleMqttClient.CreateSimpleMqttClientForHiveMQ("2aa2fd");
     return client;
 });
 builder.Services.AddHostedService<MqttMessageProcessingService>();
@@ -33,16 +36,6 @@ if (!app.Environment.IsDevelopment())
 }
 
 var configuration = app.Services.GetRequiredService<IConfiguration>();
-var simpleMqttClient = new SimpleMqttClient(new()
-{
-    Host = "", 
-    Port = 8883,
-    ClientId = "webapp",
-    TimeoutInMs = 5_000, 
-    UserName = configuration["MqttClient:UserName"], // staat in user-secrets
-    Password = "MqttCLient:Password" // staat in user-secrets
-});
-
 
 app.UseHttpsRedirection();
 

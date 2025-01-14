@@ -1,28 +1,168 @@
 @page "/MQtt"
 @using SimpleMqtt
+@using DependencyInjectionExample.Data
+@using Microsoft.EntityFrameworkCore
 @inject SimpleMqtt.SimpleMqttClient mqttClient
+@inject ApplicationDbContext dbContext
+@inject IConfiguration configuration
 @attribute [StreamRendering]
 @rendermode InteractiveServer
+@inject IServiceScopeFactory ServiceScopeFactory
 
 <PageTitle>RobotBesturing</PageTitle>
 
-
-<button type="button" class="btn btn-dark" @onclick="SendSchoonmaakMessage">SchoonmaakService</button>
-<button type="button" class="btn btn-dark" @onclick="SendForwardMessage">forward</button>
-<button type="button" class="btn btn-danger" @onclick="SendStopMessage">Stop</button>
-
+<div class="container-fluid p-4 d-flex justify-content-center">
+    <div class="modern-panel shadow-lg">
+        <div class="row text-center">
+            <div class="col">
+                <button class="btn custom-forward" @onclick="SendContinueMessage">doorgaan</button>
+                <p class="objectscount">@ObjectCount</p>
+                <p class="objectdetected">objects detected</p>
+            </div>
+            <div class="col">
+                <button class="btn custom-clean" @onclick="SendSchoonmaakMessage">
+                    <i class="fas fa-broom"></i> schoonmaak
+                </button>
+                <p class="meters">@Distance cm</p>
+                <p class="afstand">afstand</p>
+            </div>
+            <div class="col">
+                <button class="btn custom-stop" @onclick="SendStopMessage">stop</button>
+                <div class="battery mt-3">
+                    <div class="battery-icon border">
+                        <div class="charge @GetBatteryClass()" style="width: @BatteryWidth%;"></div>
+                    </div>
+                    <div class="battery-label mt-1">@BatteryPercentage%</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 @code {
-    private void SendSchoonmaakMessage()
-    { 
-        mqttClient.PublishMessage("robot/control", "schoonmaak");
+    private string BatteryPercentage = "0"; //standaardwaarde is 0 (tijdelijk)
+    private string BatteryWidth = "0"; //standaardwaarde is 0 (tijdelijk)
+    private int ObjectCount = 0; // standaardwaarde is 0 (tijdelijk)
+    private int Distance = 0; // standaardwaarde is 0 (tijdelijk)
+    private Timer _timer;
+
+    protected override async Task OnInitializedAsync() // bij opstarten van de pagina
+    {
+        mqttClient = SimpleMqttClient.CreateSimpleMqttClientForHiveMQ("2aa2fd");
+        mqttClient.OnMessageReceived += OnMessageReceived;
+
+        await mqttClient.SubscribeToTopic("robotbattery");
+        await mqttClient.SubscribeToTopic("robotobjects");
+        await mqttClient.SubscribeToTopic("robotdistance");
+        await mqttClient.SubscribeToTopic("batterymqtt");
+
+        // Start the timer to check for new messages every 5 seconds
+        _timer = new Timer(async _ => await CheckForNewMessages(), null, TimeSpan.Zero, TimeSpan.FromSeconds(5));
     }
-    private void SendForwardMessage()
-    { 
-        mqttClient.PublishMessage("robot/control", "forward");
+
+    private async Task CheckForNewMessages()
+    {
+        await mqttClient.SubscribeToTopic("batterymqtt");
     }
-    private void SendStopMessage()
-    { 
-        mqttClient.PublishMessage("robot/control", "stop");
+
+    // Methodes voor het versturen van MQTT berichten naar de robot via de broker
+    private async Task SendSchoonmaakMessage()
+    {
+        await mqttClient.PublishMessage("schoonmaak", "control");
+    }
+
+    private async Task SendContinueMessage()
+    {
+        await mqttClient.PublishMessage("continue", "control");
+    }
+
+    private async Task SendStopMessage()
+    {
+        await mqttClient.PublishMessage("stop", "control");
+    }
+
+    // batterij % ophalen van mqtt (verstuurd via de robot)
+    private async void OnMessageReceived(object? sender, SimpleMqttMessage message)
+    {
+        if (message.Topic == "robotbattery")
+        {
+            await HandleBatteryMessage(message.Message);
+        }
+        else if (message.Topic == "robotobjects")
+        {
+            await HandleObjectsMessage(message.Message);
+        }
+        else if (message.Topic == "robotdistance")
+        {
+            await HandleDistanceMessage(message.Message);
+        }
+    }
+
+   private async Task HandleBatteryMessage(string message)
+    {
+        if (int.TryParse(message, out int percentage))
+        {
+            BatteryPercentage = percentage.ToString();
+            BatteryWidth = Math.Clamp(percentage, 0, 100).ToString();
+
+            using (var scope = ServiceScopeFactory.CreateScope())
+            {
+                var scopedDbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                await scopedDbContext.BatteryPercentages.AddAsync(new BatteryPercentage { Percentage = percentage, Timestamp = DateTime.UtcNow });
+                await scopedDbContext.SaveChangesAsync();
+            }
+
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task HandleObjectsMessage(string message)
+    {
+        if (int.TryParse(message, out int count))
+        {
+            ObjectCount = count;
+
+            using (var scope = ServiceScopeFactory.CreateScope())
+            {
+                var scopedDbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                await scopedDbContext.ObjectCounts.AddAsync(new ObjectCount { Count = count, Timestamp = DateTime.UtcNow });
+                await scopedDbContext.SaveChangesAsync();
+            }
+
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task HandleDistanceMessage(string message)
+    {
+        if (int.TryParse(message, out int distance))
+        {
+            Distance = distance;
+
+            using (var scope = ServiceScopeFactory.CreateScope())
+            {
+                var scopedDbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                await scopedDbContext.Distances.AddAsync(new Distance { Value = distance, Timestamp = DateTime.UtcNow });
+                await scopedDbContext.SaveChangesAsync();
+            }
+
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+
+    private string GetBatteryClass()
+    {
+        int percentage = int.Parse(BatteryPercentage);
+        if (percentage > 75) return "battery-high";
+        if (percentage > 50) return "battery-medium";
+        if (percentage > 25) return "battery-low";
+        return "battery-critical";
+    }
+
+    public void Dispose()
+    {
+        mqttClient.OnMessageReceived -= OnMessageReceived;
+        _timer?.Dispose();
     }
 }

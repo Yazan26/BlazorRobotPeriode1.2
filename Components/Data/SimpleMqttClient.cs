@@ -3,8 +3,6 @@ using HiveMQtt.Client.Events;
 using HiveMQtt.MQTT5.ReasonCodes;
 using HiveMQtt.MQTT5.Types;
 using System.Text;
-using WebsiteRobotPeriode1._2.Components;
-using Microsoft.Extensions.Configuration;
 
 namespace SimpleMqtt;
 
@@ -16,7 +14,7 @@ namespace SimpleMqtt;
 public class SimpleMqttClient : IDisposable
 {
     /// <summary>
-    /// Berichten worden standaard verstuurd en ontvangen in onderstaande text encoding
+    /// Berichten worden standaard verstu/// urd en ontvangen in onderstaande text encoding
     /// </summary>
     private static Encoding DefaultEncoding = Encoding.ASCII;
 
@@ -151,9 +149,8 @@ public class SimpleMqttClient : IDisposable
     /// </summary>
     /// <param name="clientId">Een unieke naam van je client</param>
     /// <returns></returns>
-    public static SimpleMqttClient CreateSimpleMqttClientForHiveMQ(string clientId, IConfiguration configuration)
+    public static SimpleMqttClient CreateSimpleMqttClientForHiveMQ(string clientId)
     {
-        
         var mqttWrapper = new SimpleMqttClient(new()
         {
             Host = "fe110b5a5add46a4b808ea5f8249ee8f.s1.eu.hivemq.cloud", // maak eventueel een account aan bij hivemq als dit problemen geeft.
@@ -161,8 +158,8 @@ public class SimpleMqttClient : IDisposable
             CleanStart = false, // <--- false, haalt al gebufferde meldingen ook op.
             ClientId = clientId, // Dit clientid moet uniek zijn binnen de broker
             TimeoutInMs = 5_000, // Standaard time-out bij het maken van een verbinding (5 seconden)
-            UserName = configuration["MqttClient:UserName"], // Staat in user-secrets
-            Password = configuration["MqttClient:Password"] // Staat in user-secrets
+            UserName = "hivemq.webclient.1735781503115",
+            Password = "0Y%2W!yxitZV9Ah#.c1G"
         });
 
         return mqttWrapper;
